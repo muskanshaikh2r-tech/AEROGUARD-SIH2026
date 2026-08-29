@@ -1,5 +1,8 @@
 streamlit
 opencv-python-headless
-ultralytics
 numpy
-sounddevice
+pandas
+pillow
+plotly
+folium
+streamlit-folium
