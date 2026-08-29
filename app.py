@@ -1,7 +1,5 @@
 import streamlit as st
-import base64
 
-# Page Configuration
 st.set_page_config(
     page_title="AEROGUARD Command Center",
     page_icon="🛸",
@@ -9,42 +7,18 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Function to load local image as base64 background
-def get_base64_of_bin_file(bin_file):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
-
-# Convert uploaded image to base64 string
-try:
-    bin_str = get_base64_of_bin_file('bg_drone.png')
-    bg_style = f'''
-    <style>
-        .stApp {{
-            background: linear-gradient(rgba(5, 12, 22, 0.75), rgba(3, 8, 16, 0.88)), 
-                        url("data:image/png;base64,{bin_str}") !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-attachment: fixed !important;
-            color: #e2e8f0;
-        }}
-    </style>
-    '''
-    st.markdown(bg_style, unsafe_allow_html=True)
-except Exception:
-    # Fallback styling if image is not yet uploaded to GitHub
-    st.markdown("""
-    <style>
-        .stApp {
-            background: radial-gradient(circle at 50% 30%, #0d1e36, #030810) !important;
-            color: #e2e8f0;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-
-# Custom Glassmorphic CSS Styling
+# High-Res Dark Cyber Drone Image via Direct Reliable Link
 st.markdown("""
 <style>
+    .stApp {
+        background: linear-gradient(rgba(5, 12, 22, 0.82), rgba(3, 8, 16, 0.90)), 
+                    url("https://images.unsplash.com/photo-1508614589041-895b88991e3e?q=80&w=2000&auto=format&fit=crop") !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-attachment: fixed !important;
+        color: #e2e8f0;
+    }
+
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
@@ -87,7 +61,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# TOP HEADER BANNER
 st.markdown("""
 <div class="poster-banner">
     <div>
@@ -109,43 +82,35 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# NAVIGATION TABS
 tab1, tab2 = st.tabs([
     "📡 Live Command Center", 
     "🛸 3D Drone Digital Twin"
 ])
 
-# TAB 1: CLEAN 2-COLUMN DASHBOARD (ONLY VIDEO & MAP)
 with tab1:
     col_video, col_map = st.columns([1, 1], gap="large")
     
-    # LEFT SIDE: DRONE CAPTURED VIDEO FEED
     with col_video:
         st.subheader("🎥 Live Drone Vision Feed")
         st.caption("Thermal & Optical Survivor Detection Stream (Member 3 - detection.py)")
-        
         st.markdown("""
         <div style="height: 400px; background: rgba(3, 8, 16, 0.85); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
             [ 📷 Live Video Stream Canvas Container ]
         </div>
         """, unsafe_allow_html=True)
 
-    # RIGHT SIDE: GIS SATELLITE COVERED MAP
     with col_map:
         st.subheader("🗺️ GIS Satellite Search Grid")
         st.caption("Real-Time Drone Trajectory & Search Coverage (Member 2 - map_module.py)")
-        
         st.markdown("""
         <div style="height: 400px; background: rgba(3, 8, 16, 0.85); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
             [ 🛰️ Interactive Search Grid Map Container ]
         </div>
         """, unsafe_allow_html=True)
 
-# TAB 2: SEPARATE 3D DRONE MODEL SCREEN
 with tab2:
     st.subheader("⚙️ 3D Digital Twin & Sensor Hardware Architecture")
     st.caption("Interactive Drone Hardware Model & Multi-Sensor Payload Array (Member 4)")
-    
     st.components.v1.html("""
     <div style="width: 100%; height: 480px; background: rgba(3, 8, 16, 0.85); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0, 242, 254, 0.4);">
         <iframe src="https://my.spline.design/dronedemo-a3e74b3e/" frameborder="0" width="100%" height="100%"></iframe>
