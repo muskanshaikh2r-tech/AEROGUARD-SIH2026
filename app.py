@@ -2,9 +2,15 @@ import streamlit as st
 import urllib.request
 import base64
 import time
-import cv2
-import detection  # Local file: detection.py
 
+try:
+    import cv2
+except ImportError:
+    import subprocess, sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "opencv-python-headless"])
+    import cv2
+
+import detection  # Local file: detection.py
 st.set_page_config(
     page_title="AEROGUARD Command Center",
     page_icon="🛸",
