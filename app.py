@@ -1,7 +1,9 @@
 import streamlit as st
 import urllib.request
 import base64
-import detection
+import time
+import cv2
+import detection  # Local file: detection.py
 
 st.set_page_config(
     page_title="AEROGUARD Command Center",
@@ -27,7 +29,6 @@ bg_image_url = "https://i.postimg.cc/rw9dqCGj/bg-drone-png.jpg"
 base64_img = get_base64_bg(bg_image_url)
 
 if base64_img:
-    # Overlay lightened so image shows clearly without pitch-black mask
     bg_style = f"""
     <style>
         .stApp {{
@@ -116,37 +117,42 @@ with tab1:
     col_video, col_map = st.columns([1, 1], gap="large")
     with col_video:
         st.subheader("🎥 Live Drone Vision Feed")
-        st.caption("Thermal & Optical Survivor Detection Stream (detection.py)")
+        st.caption("Thermal & Optical Survivor Detection Stream")
         
         # Stream Toggle Switch
         run_stream = st.toggle("🔴 Start Live AI Video Feed", value=False)
         video_canvas = st.empty()
+        metrics_container = st.empty()
 
         if run_stream:
             try:
-                # Video source path
                 video_path = "synthetic_thermal_rescue.mp4"
                 
-                # Member 3 ki detection function call
-                # Note: Agar function name alag hai toh use update kar lein
-                cap = detection.get_video_stream(video_path)
+                # Video capture call via custom module
+                cap = cv2.VideoCapture(video_path) if hasattr(detection, 'get_video_stream') == False else detection.get_video_stream(video_path)
                 
-                while run_stream:
+                while run_stream and cap.isOpened():
                     ret, frame = cap.read()
                     if not ret:
-                        st.warning("⚠️ Video stream ended or loop completed.")
-                        break
+                        # Video loop end ho toh restart karein
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        continue
                     
-                    # YOLO/OpenCV Detection Process
+                    # YOLO / OpenCV Detection Process
                     processed_frame, detected_count = detection.detect_survivors(frame)
                     
                     # Render processed frame on canvas
                     video_canvas.image(processed_frame, channels="BGR", use_container_width=True)
+                    metrics_container.info(f"🚨 Survivors Detected: **{detected_count}**")
                     
+                    # FPS Control Delay
+                    time.sleep(0.03)
+                    
+                cap.release()
             except Exception as e:
-                st.error(f"Error loading detection module: {e}")
+                st.error(f"Error executing detection stream: {e}")
         else:
-            # Standby Placeholder when feed is OFF
+            # Standby Placeholder
             st.markdown("""
             <div style="height: 350px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
                 <p style="font-size: 1.2rem; margin-bottom: 5px;">📡 FEED STANDBY</p>
@@ -156,7 +162,7 @@ with tab1:
 
     with col_map:
         st.subheader("🗺️ GIS Satellite Search Grid")
-        st.caption("Real-Time Drone Trajectory & Search Coverage (Member 2 - map_module.py)")
+        st.caption("Real-Time Drone Trajectory & Search Coverage")
         st.markdown("""
         <div style="height: 400px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
             [ 🛰️ Interactive Search Grid Map Container ]
@@ -165,7 +171,7 @@ with tab1:
 
 with tab2:
     st.subheader("⚙️ 3D Digital Twin & Sensor Hardware Architecture")
-    st.caption("Interactive Drone Hardware Model & Multi-Sensor Payload Array (Member 4)")
+    st.caption("Interactive Drone Hardware Model & Multi-Sensor Payload Array")
     st.components.v1.html("""
     <div style="width: 100%; height: 480px; background: rgba(3, 8, 16, 0.75); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0, 242, 254, 0.4);">
         <iframe src="https://my.spline.design/dronedemo-a3e74b3e/" frameborder="0" width="100%" height="100%"></iframe>
