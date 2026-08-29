@@ -61,8 +61,8 @@ st.markdown("""
     /* Glassmorphic Dark Floating Cards */
     div[data-testid="stVerticalBlock"] > div {
         background: rgba(8, 15, 28, 0.70) !important;
-        backdrop-filter: blur(16px) !important;
-        -webkit-backdrop-filter: blur(16px) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
         border: 1px solid rgba(0, 242, 254, 0.3) !important;
         border-radius: 16px !important;
         padding: 20px !important;
