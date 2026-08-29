@@ -1,9 +1,9 @@
 streamlit
+streamlit-webrtc
 opencv-python-headless
-PyAudio
+ultralytics
 numpy
-pandas
-pillow
-plotly
+sounddevice
 folium
 streamlit-folium
+pillow
