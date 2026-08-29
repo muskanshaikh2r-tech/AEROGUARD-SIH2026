@@ -1,5 +1,6 @@
 streamlit
 opencv-python-headless
+PyAudio
 numpy
 pandas
 pillow
