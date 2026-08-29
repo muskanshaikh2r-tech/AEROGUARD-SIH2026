@@ -1,6 +1,7 @@
 import streamlit as st
 import urllib.request
 import base64
+import detection
 
 st.set_page_config(
     page_title="AEROGUARD Command Center",
@@ -115,12 +116,43 @@ with tab1:
     col_video, col_map = st.columns([1, 1], gap="large")
     with col_video:
         st.subheader("🎥 Live Drone Vision Feed")
-        st.caption("Thermal & Optical Survivor Detection Stream (Member 3 - detection.py)")
-        st.markdown("""
-        <div style="height: 400px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
-            [ 📷 Live Video Stream Canvas Container ]
-        </div>
-        """, unsafe_allow_html=True)
+        st.caption("Thermal & Optical Survivor Detection Stream (detection.py)")
+        
+        # Stream Toggle Switch
+        run_stream = st.toggle("🔴 Start Live AI Video Feed", value=False)
+        video_canvas = st.empty()
+
+        if run_stream:
+            try:
+                # Video source path
+                video_path = "synthetic_thermal_rescue.mp4"
+                
+                # Member 3 ki detection function call
+                # Note: Agar function name alag hai toh use update kar lein
+                cap = detection.get_video_stream(video_path)
+                
+                while run_stream:
+                    ret, frame = cap.read()
+                    if not ret:
+                        st.warning("⚠️ Video stream ended or loop completed.")
+                        break
+                    
+                    # YOLO/OpenCV Detection Process
+                    processed_frame, detected_count = detection.detect_survivors(frame)
+                    
+                    # Render processed frame on canvas
+                    video_canvas.image(processed_frame, channels="BGR", use_container_width=True)
+                    
+            except Exception as e:
+                st.error(f"Error loading detection module: {e}")
+        else:
+            # Standby Placeholder when feed is OFF
+            st.markdown("""
+            <div style="height: 350px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
+                <p style="font-size: 1.2rem; margin-bottom: 5px;">📡 FEED STANDBY</p>
+                <p style="color: #64748b; font-size: 0.85rem;">Toggle switch above to launch AI detection stream</p>
+            </div>
+            """, unsafe_allow_html=True)
 
     with col_map:
         st.subheader("🗺️ GIS Satellite Search Grid")
