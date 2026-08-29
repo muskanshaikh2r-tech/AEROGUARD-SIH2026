@@ -3,154 +3,97 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 import time
-import os
-
-# sounddevice ko safely handle karein cloud ke liye
-try:
-    import sounddevice as sd
-    HAS_AUDIO_HARDWARE = True
-except Exception:
-    HAS_AUDIO_HARDWARE = False
+import tempfile
 
 st.set_page_config(page_title="AEROGUARD AI", layout="wide")
 st.title("AEROGUARD V5 - Human + Audio + Movement")
 
-# Model Loading with Cache
 @st.cache_resource
 def load_model():
     return YOLO("yolov8n.pt")
 
 model = load_model()
 
-# Audio Stream Initialization (Agar audio device available hai)
-audio_level = 0.0
+# Sidebar Setup
+st.sidebar.header("Input Settings")
+uploaded_file = st.sidebar.file_uploader("Upload Disaster/Thermal Video", type=["mp4", "avi", "mov"])
 
-def audio_callback(indata, frames, time_info, status):
-    global audio_level
-    audio_level = float(np.max(np.abs(indata)))
-
-if HAS_AUDIO_HARDWARE:
-    try:
-        audio_stream = sd.InputStream(samplerate=44100, channels=1, callback=audio_callback)
-        audio_stream.start()
-    except Exception:
-        HAS_AUDIO_HARDWARE = False
-
-# Video Path Setup
-# Local path ki jagah repo me rakhi video ka relative path
-VIDEO_PATH = "audio.mp4" 
-
-if not os.path.exists(VIDEO_PATH):
-    st.error(f"Video file '{VIDEO_PATH}' repository me nahi mili! Kripya ise GitHub repo me upload karein.")
-    st.stop()
-
-camera = cv2.VideoCapture(VIDEO_PATH)
-
-THRESHOLD = 0.15
-CONFIRMATION_TIME = 0.8
-alert_start_time = None
-MOVEMENT_THRESHOLD = 5000
-previous_gray = None
-
-# Streamlit UI Placeholder
 st_frame = st.empty()
 
-run_app = st.sidebar.checkbox("Run Detection System", value=True)
+if uploaded_file is not None:
+    # Uploaded file ko temp path me write karein
+    tfile = tempfile.NamedTemporaryFile(delete=False)
+    tfile.write(uploaded_file.read())
+    video_path = tfile.name
 
-while camera.isOpened() and run_app:
-    success, frame = camera.read()
-    if not success:
-        # Video end hone par auto-looping
-        camera.set(cv2.CAP_PROP_POS_FRAMES, 0)
-        continue
+    camera = cv2.VideoCapture(video_path)
 
-    # Thermal Simulation
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    thermal = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
+    THRESHOLD = 0.15
+    CONFIRMATION_TIME = 0.8
+    alert_start_time = None
+    MOVEMENT_THRESHOLD = 5000
+    previous_gray = None
 
-    # Movement Detection
-    if previous_gray is None:
-        previous_gray = gray.copy()
-        movement_detected = False
-    else:
-        difference = cv2.absdiff(previous_gray, gray)
-        _, movement_mask = cv2.threshold(difference, 25, 255, cv2.THRESH_BINARY)
-        movement_pixels = cv2.countNonZero(movement_mask)
-        movement_detected = movement_pixels > MOVEMENT_THRESHOLD
-        previous_gray = gray.copy()
+    run_app = st.sidebar.checkbox("Run Detection System", value=True)
 
-    # Human Detection
-    results = model(frame, verbose=False)
-    human_detected = False
-    best_confidence = 0
+    while camera.isOpened() and run_app:
+        success, frame = camera.read()
+        if not success:
+            break
 
-    for result in results:
-        for box in result.boxes:
-            class_id = int(box.cls[0])
-            confidence = float(box.conf[0])
+        # Thermal Simulation
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        thermal = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
 
-            if class_id == 0:  # Human class
-                human_detected = True
-                if confidence > best_confidence:
-                    best_confidence = confidence
+        # Movement Detection
+        if previous_gray is None:
+            previous_gray = gray.copy()
+            movement_detected = False
+        else:
+            difference = cv2.absdiff(previous_gray, gray)
+            _, movement_mask = cv2.threshold(difference, 25, 255, cv2.THRESH_BINARY)
+            movement_pixels = cv2.countNonZero(movement_mask)
+            movement_detected = movement_pixels > MOVEMENT_THRESHOLD
+            previous_gray = gray.copy()
 
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                cv2.rectangle(thermal, (x1, y1), (x2, y2), (0, 0, 255), 3)
-                cv2.putText(thermal, f"HUMAN {confidence * 100:.0f}%", (x1, max(y1 - 10, 20)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        # Human Detection
+        results = model(frame, verbose=False)
+        human_detected = False
+        best_confidence = 0
 
-    # Audio Detection
-    audio_spike = audio_level > THRESHOLD
+        for result in results:
+            for box in result.boxes:
+                class_id = int(box.cls[0])
+                confidence = float(box.conf[0])
 
-    # Survivor Conditions
-    survivor_conditions = human_detected and movement_detected and audio_spike
+                if class_id == 0:  # Person
+                    human_detected = True
+                    if confidence > best_confidence:
+                        best_confidence = confidence
 
-    # Alert Confirmation
-    if survivor_conditions:
-        if alert_start_time is None:
-            alert_start_time = time.time()
-        elapsed = time.time() - alert_start_time
-        confirmed_alert = elapsed >= CONFIRMATION_TIME
-    else:
-        alert_start_time = None
-        confirmed_alert = False
-        elapsed = 0
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    cv2.rectangle(thermal, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                    cv2.putText(thermal, f"HUMAN {confidence * 100:.0f}%", (x1, max(y1 - 10, 20)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-    # Status Panel
-    overlay = thermal.copy()
-    cv2.rectangle(overlay, (0, 0), (440, 180), (25, 25, 25), -1)
-    thermal = cv2.addWeighted(overlay, 0.85, thermal, 0.15, 0)
+        # Status Panel
+        overlay = thermal.copy()
+        cv2.rectangle(overlay, (0, 0), (440, 150), (25, 25, 25), -1)
+        thermal = cv2.addWeighted(overlay, 0.85, thermal, 0.15, 0)
 
-    cv2.putText(thermal, "AEROGUARD AI", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-    
-    human_text = f"HUMAN: DETECTED {best_confidence * 100:.0f}%" if human_detected else "HUMAN: NOT DETECTED"
-    cv2.putText(thermal, human_text, (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        cv2.putText(thermal, "AEROGUARD AI", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+        
+        human_text = f"HUMAN: DETECTED {best_confidence * 100:.0f}%" if human_detected else "HUMAN: NOT DETECTED"
+        cv2.putText(thermal, human_text, (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
-    movement_text = "MOVEMENT: DETECTED" if movement_detected else "MOVEMENT: NONE"
-    movement_color = (0, 255, 0) if movement_detected else (255, 255, 255)
-    cv2.putText(thermal, movement_text, (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, movement_color, 2)
+        movement_text = "MOVEMENT: DETECTED" if movement_detected else "MOVEMENT: NONE"
+        movement_color = (0, 255, 0) if movement_detected else (255, 255, 255)
+        cv2.putText(thermal, movement_text, (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, movement_color, 2)
 
-    audio_text = "AUDIO: SPIKE" if audio_spike else "AUDIO: NORMAL"
-    audio_color = (0, 255, 255) if audio_spike else (255, 255, 255)
-    cv2.putText(thermal, audio_text, (20, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, audio_color, 2)
+        # Frame Render
+        thermal_rgb = cv2.cvtColor(thermal, cv2.COLOR_BGR2RGB)
+        st_frame.image(thermal_rgb, channels="RGB", use_container_width=True)
 
-    cv2.putText(thermal, f"LEVEL: {audio_level:.3f}", (20, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
-    if survivor_conditions and not confirmed_alert:
-        remaining = max(0, CONFIRMATION_TIME - elapsed)
-        cv2.putText(thermal, f"VERIFYING... {remaining:.1f}s", (20, 205), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-
-    if confirmed_alert:
-        cv2.rectangle(thermal, (10, 220), (560, 285), (20, 20, 20), -1)
-        cv2.rectangle(thermal, (10, 220), (560, 285), (0, 0, 255), 2)
-        cv2.putText(thermal, "POSSIBLE SURVIVOR ALERT", (25, 260), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-
-    # Convert BGR to RGB for Streamlit Display
-    thermal_rgb = cv2.cvtColor(thermal, cv2.COLOR_BGR2RGB)
-    st_frame.image(thermal_rgb, channels="RGB", use_container_width=True)
-
-# Cleanup
-camera.release()
-if HAS_AUDIO_HARDWARE:
-    audio_stream.stop()
-    audio_stream.close()
+    camera.release()
+else:
+    st.info("Sidebar se mp4 video file upload karein detection system start karne ke liye.")
