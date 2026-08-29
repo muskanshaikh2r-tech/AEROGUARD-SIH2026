@@ -1,178 +1,156 @@
 import streamlit as st
-import urllib.request
-import base64
-import time
 import cv2
-import detection  # Local file: detection.py
-st.set_page_config(
-    page_title="AEROGUARD Command Center",
-    page_icon="🛸",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+import numpy as np
+from ultralytics import YOLO
+import time
+import os
 
-# Fetch Image safely as Base64 String
-@st.cache_data
-def get_base64_bg(url):
+# sounddevice ko safely handle karein cloud ke liye
+try:
+    import sounddevice as sd
+    HAS_AUDIO_HARDWARE = True
+except Exception:
+    HAS_AUDIO_HARDWARE = False
+
+st.set_page_config(page_title="AEROGUARD AI", layout="wide")
+st.title("AEROGUARD V5 - Human + Audio + Movement")
+
+# Model Loading with Cache
+@st.cache_resource
+def load_model():
+    return YOLO("yolov8n.pt")
+
+model = load_model()
+
+# Audio Stream Initialization (Agar audio device available hai)
+audio_level = 0.0
+
+def audio_callback(indata, frames, time_info, status):
+    global audio_level
+    audio_level = float(np.max(np.abs(indata)))
+
+if HAS_AUDIO_HARDWARE:
     try:
-        req = urllib.request.Request(
-            url, 
-            headers={'User-Agent': 'Mozilla/5.0'}
-        )
-        with urllib.request.urlopen(req) as response:
-            return base64.b64encode(response.read()).decode()
+        audio_stream = sd.InputStream(samplerate=44100, channels=1, callback=audio_callback)
+        audio_stream.start()
     except Exception:
-        return ""
+        HAS_AUDIO_HARDWARE = False
 
-bg_image_url = "https://i.postimg.cc/rw9dqCGj/bg-drone-png.jpg"
-base64_img = get_base64_bg(bg_image_url)
+# Video Path Setup
+# Local path ki jagah repo me rakhi video ka relative path
+VIDEO_PATH = "audio.mp4" 
 
-if base64_img:
-    bg_style = f"""
-    <style>
-        .stApp {{
-            background: linear-gradient(rgba(5, 12, 22, 0.20), rgba(3, 8, 16, 0.35)), 
-                        url("data:image/jpeg;base64,{base64_img}") !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-repeat: no-repeat !important;
-            background-attachment: fixed !important;
-            color: #e2e8f0;
-        }}
-    </style>
-    """
-    st.markdown(bg_style, unsafe_allow_html=True)
+if not os.path.exists(VIDEO_PATH):
+    st.error(f"Video file '{VIDEO_PATH}' repository me nahi mili! Kripya ise GitHub repo me upload karein.")
+    st.stop()
 
-# UI CSS
-st.markdown("""
-<style>
-    .block-container {
-        padding-top: 1.5rem !important;
-        padding-bottom: 2rem !important;
-        max-width: 95% !important;
-    }
+camera = cv2.VideoCapture(VIDEO_PATH)
 
-    .poster-banner {
-        background: rgba(10, 20, 35, 0.75);
-        border: 1px solid rgba(0, 242, 254, 0.4);
-        backdrop-filter: blur(12px);
-        border-radius: 16px;
-        padding: 18px 28px;
-        margin-bottom: 25px;
-        box-shadow: 0 0 25px rgba(0, 242, 254, 0.15);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
+THRESHOLD = 0.15
+CONFIRMATION_TIME = 0.8
+alert_start_time = None
+MOVEMENT_THRESHOLD = 5000
+previous_gray = None
 
-    div[data-testid="stVerticalBlock"] > div {
-        background: rgba(8, 15, 28, 0.65) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        border: 1px solid rgba(0, 242, 254, 0.3) !important;
-        border-radius: 16px !important;
-        padding: 20px !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
-    }
+# Streamlit UI Placeholder
+st_frame = st.empty()
 
-    button[data-baseweb="tab"] {
-        font-size: 1.1rem !important;
-        font-weight: 600 !important;
-        color: #94a3b8 !important;
-        padding: 10px 24px !important;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] {
-        color: #00f2fe !important;
-        border-bottom-color: #00f2fe !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+run_app = st.sidebar.checkbox("Run Detection System", value=True)
 
-# Header & Content
-st.markdown("""
-<div class="poster-banner">
-    <div>
-        <span style="background: rgba(0, 242, 254, 0.15); border: 1px solid #00f2fe; color: #00f2fe; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.75rem;">
-            AI FOR SOCIAL GOOD
-        </span>
-        <h1 style="margin: 8px 0 0 0; color: #f8fafc; font-weight: 800; font-size: 2rem; letter-spacing: 1px;">
-            🛸 AEROGUARD
-        </h1>
-        <p style="margin: 0; color: #94a3b8; font-size: 0.9rem;">
-            Autonomous AI Drone Simulation & Disaster Rescue Command Center
-        </p>
-    </div>
-    <div style="text-align: right;">
-        <span style="background-color: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.85rem;">
-            🔴 LIVE RESCUE MISSION ACTIVE
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+while camera.isOpened() and run_app:
+    success, frame = camera.read()
+    if not success:
+        # Video end hone par auto-looping
+        camera.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        continue
 
-tab1, tab2 = st.tabs(["📡 Live Command Center", "🛸 3D Drone Digital Twin"])
+    # Thermal Simulation
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    thermal = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
 
-with tab1:
-    col_video, col_map = st.columns([1, 1], gap="large")
-    with col_video:
-        st.subheader("🎥 Live Drone Vision Feed")
-        st.caption("Thermal & Optical Survivor Detection Stream")
-        
-        # Stream Toggle Switch
-        run_stream = st.toggle("🔴 Start Live AI Video Feed", value=False)
-        video_canvas = st.empty()
-        metrics_container = st.empty()
+    # Movement Detection
+    if previous_gray is None:
+        previous_gray = gray.copy()
+        movement_detected = False
+    else:
+        difference = cv2.absdiff(previous_gray, gray)
+        _, movement_mask = cv2.threshold(difference, 25, 255, cv2.THRESH_BINARY)
+        movement_pixels = cv2.countNonZero(movement_mask)
+        movement_detected = movement_pixels > MOVEMENT_THRESHOLD
+        previous_gray = gray.copy()
 
-        if run_stream:
-            try:
-                video_path = "synthetic_thermal_rescue.mp4"
-                
-                # Video capture call via custom module
-                cap = cv2.VideoCapture(video_path) if hasattr(detection, 'get_video_stream') == False else detection.get_video_stream(video_path)
-                
-                while run_stream and cap.isOpened():
-                    ret, frame = cap.read()
-                    if not ret:
-                        # Video loop end ho toh restart karein
-                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                        continue
-                    
-                    # YOLO / OpenCV Detection Process
-                    processed_frame, detected_count = detection.detect_survivors(frame)
-                    
-                    # Render processed frame on canvas
-                    video_canvas.image(processed_frame, channels="BGR", use_container_width=True)
-                    metrics_container.info(f"🚨 Survivors Detected: **{detected_count}**")
-                    
-                    # FPS Control Delay
-                    time.sleep(0.03)
-                    
-                cap.release()
-            except Exception as e:
-                st.error(f"Error executing detection stream: {e}")
-        else:
-            # Standby Placeholder
-            st.markdown("""
-            <div style="height: 350px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
-                <p style="font-size: 1.2rem; margin-bottom: 5px;">📡 FEED STANDBY</p>
-                <p style="color: #64748b; font-size: 0.85rem;">Toggle switch above to launch AI detection stream</p>
-            </div>
-            """, unsafe_allow_html=True)
+    # Human Detection
+    results = model(frame, verbose=False)
+    human_detected = False
+    best_confidence = 0
 
-    with col_map:
-        st.subheader("🗺️ GIS Satellite Search Grid")
-        st.caption("Real-Time Drone Trajectory & Search Coverage")
-        st.markdown("""
-        <div style="height: 400px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
-            [ 🛰️ Interactive Search Grid Map Container ]
-        </div>
-        """, unsafe_allow_html=True)
+    for result in results:
+        for box in result.boxes:
+            class_id = int(box.cls[0])
+            confidence = float(box.conf[0])
 
-with tab2:
-    st.subheader("⚙️ 3D Digital Twin & Sensor Hardware Architecture")
-    st.caption("Interactive Drone Hardware Model & Multi-Sensor Payload Array")
-    st.components.v1.html("""
-    <div style="width: 100%; height: 480px; background: rgba(3, 8, 16, 0.75); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0, 242, 254, 0.4);">
-        <iframe src="https://my.spline.design/dronedemo-a3e74b3e/" frameborder="0" width="100%" height="100%"></iframe>
-    </div>
-    """, height=500)
+            if class_id == 0:  # Human class
+                human_detected = True
+                if confidence > best_confidence:
+                    best_confidence = confidence
+
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                cv2.rectangle(thermal, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                cv2.putText(thermal, f"HUMAN {confidence * 100:.0f}%", (x1, max(y1 - 10, 20)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+    # Audio Detection
+    audio_spike = audio_level > THRESHOLD
+
+    # Survivor Conditions
+    survivor_conditions = human_detected and movement_detected and audio_spike
+
+    # Alert Confirmation
+    if survivor_conditions:
+        if alert_start_time is None:
+            alert_start_time = time.time()
+        elapsed = time.time() - alert_start_time
+        confirmed_alert = elapsed >= CONFIRMATION_TIME
+    else:
+        alert_start_time = None
+        confirmed_alert = False
+        elapsed = 0
+
+    # Status Panel
+    overlay = thermal.copy()
+    cv2.rectangle(overlay, (0, 0), (440, 180), (25, 25, 25), -1)
+    thermal = cv2.addWeighted(overlay, 0.85, thermal, 0.15, 0)
+
+    cv2.putText(thermal, "AEROGUARD AI", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+    
+    human_text = f"HUMAN: DETECTED {best_confidence * 100:.0f}%" if human_detected else "HUMAN: NOT DETECTED"
+    cv2.putText(thermal, human_text, (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+    movement_text = "MOVEMENT: DETECTED" if movement_detected else "MOVEMENT: NONE"
+    movement_color = (0, 255, 0) if movement_detected else (255, 255, 255)
+    cv2.putText(thermal, movement_text, (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, movement_color, 2)
+
+    audio_text = "AUDIO: SPIKE" if audio_spike else "AUDIO: NORMAL"
+    audio_color = (0, 255, 255) if audio_spike else (255, 255, 255)
+    cv2.putText(thermal, audio_text, (20, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, audio_color, 2)
+
+    cv2.putText(thermal, f"LEVEL: {audio_level:.3f}", (20, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+    if survivor_conditions and not confirmed_alert:
+        remaining = max(0, CONFIRMATION_TIME - elapsed)
+        cv2.putText(thermal, f"VERIFYING... {remaining:.1f}s", (20, 205), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+
+    if confirmed_alert:
+        cv2.rectangle(thermal, (10, 220), (560, 285), (20, 20, 20), -1)
+        cv2.rectangle(thermal, (10, 220), (560, 285), (0, 0, 255), 2)
+        cv2.putText(thermal, "POSSIBLE SURVIVOR ALERT", (25, 260), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
+    # Convert BGR to RGB for Streamlit Display
+    thermal_rgb = cv2.cvtColor(thermal, cv2.COLOR_BGR2RGB)
+    st_frame.image(thermal_rgb, channels="RGB", use_container_width=True)
+
+# Cleanup
+camera.release()
+if HAS_AUDIO_HARDWARE:
+    audio_stream.stop()
+    audio_stream.close()
