@@ -1,6 +1,8 @@
 import streamlit as st
 import urllib.request
 import base64
+import cv2
+import numpy as np
 
 st.set_page_config(
     page_title="AEROGUARD Command Center",
@@ -9,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Safe Import for detection module
+# Safe Import for detection module (Member 3)
 try:
     import detection
     HAS_DETECTION = True
@@ -17,7 +19,16 @@ except Exception as e:
     HAS_DETECTION = False
     DETECTION_ERROR = str(e)
 
-# Fetch Image safely as Base64 String
+# Safe Import for map module (Member 2)
+try:
+    import map_module
+    from streamlit_folium import st_folium
+    HAS_MAP = True
+except Exception as e:
+    HAS_MAP = False
+    MAP_ERROR = str(e)
+
+# Fetch Background Image safely as Base64 String
 @st.cache_data
 def get_base64_bg(url):
     try:
@@ -49,7 +60,7 @@ if base64_img:
     """
     st.markdown(bg_style, unsafe_allow_html=True)
 
-# UI CSS
+# Custom UI Styling
 st.markdown("""
 <style>
     .block-container {
@@ -94,7 +105,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Header & Content
+# Banner Header
 st.markdown("""
 <div class="poster-banner">
     <div>
@@ -121,7 +132,7 @@ tab1, tab2 = st.tabs(["📡 Live Command Center", "🛸 3D Drone Digital Twin"])
 with tab1:
     col_video, col_map = st.columns([1, 1], gap="large")
     
-    # --- LEFT COLUMN: Capture Video & AI Detection Stream ---
+    # --- LEFT COLUMN: Live Webcam AI Detection Stream ---
     with col_video:
         st.subheader("🎥 Live Drone Vision Feed")
         st.caption("Thermal & Optical Survivor Detection Stream (Member 3 - detection.py)")
@@ -134,38 +145,42 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
         else:
-            run_feed = st.toggle("🔴 Start Live AI Video Feed", value=False)
-            video_frame = st.empty()
+            # Webcam Frame Capture for Streamlit Cloud
+            camera_buffer = st.camera_input("Capture Live Webcam Snapshot")
             
-            if run_feed:
-                try:
-                    cap = detection.get_video_stream("synthetic_thermal_rescue.mp4")
-                    while run_feed:
-                        ret, frame = cap.read()
-                        if not ret:
-                            st.info("Video stream completed.")
-                            break
-                        processed_frame, count = detection.detect_survivors(frame)
-                        video_frame.image(processed_frame, channels="BGR", use_container_width=True)
-                except Exception as ex:
-                    st.error(f"Stream execution note: {ex}")
-            else:
-                st.markdown("""
-                <div style="height: 350px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
-                    <p style="margin: 0; font-size: 1.1rem;">📡 STREAM STANDBY</p>
-                    <p style="margin: 5px 0 0 0; color: #64748b; font-size: 0.8rem;">Toggle the switch above to display live AI feed</p>
-                </div>
-                """, unsafe_allow_html=True)
+            if 'prev_gray' not in st.session_state:
+                st.session_state.prev_gray = None
+            if 'alert_time' not in st.session_state:
+                st.session_state.alert_time = None
+
+            if camera_buffer is not None:
+                bytes_data = camera_buffer.getvalue()
+                frame = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+
+                # Process frame via detection.py engine
+                processed_frame, st.session_state.prev_gray, st.session_state.alert_time = detection.process_frame(
+                    frame, st.session_state.prev_gray, st.session_state.alert_time
+                )
+
+                st.image(processed_frame, channels="BGR", use_container_width=True)
 
     # --- RIGHT COLUMN: GIS Search Map ---
     with col_map:
         st.subheader("🗺️ GIS Satellite Search Grid")
         st.caption("Real-Time Drone Trajectory & Search Coverage (Member 2 - map_module.py)")
-        st.markdown("""
-        <div style="height: 400px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
-            [ 🛰️ Interactive Search Grid Map Container ]
-        </div>
-        """, unsafe_allow_html=True)
+        
+        if HAS_MAP and hasattr(map_module, 'get_map'):
+            try:
+                m = map_module.get_map()
+                st_folium(m, width="100%", height=400)
+            except Exception as e:
+                st.error(f"Map Rendering Error: {e}")
+        else:
+            st.markdown("""
+            <div style="height: 400px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
+                [ 🛰️ Interactive Search Grid Map Loading / Module Missing ]
+            </div>
+            """, unsafe_allow_html=True)
 
 with tab2:
     st.subheader("⚙️ 3D Digital Twin & Sensor Hardware Architecture")
