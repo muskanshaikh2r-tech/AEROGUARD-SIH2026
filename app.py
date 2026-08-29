@@ -23,7 +23,7 @@ def get_base64_bg(url):
     except Exception:
         return ""
 
-bg_image_url = "https://i.postimg.cc/rw9dqCGj/bg-drone-png.jpg"
+bg_image_url = "https://postimg.cc/k2BMcSpR][img]https://i.postimg.cc/k2BMcSpR/bg-drone-png.jpg[/img]"
 base64_img = get_base64_bg(bg_image_url)
 
 # 3. Custom CSS Injector
