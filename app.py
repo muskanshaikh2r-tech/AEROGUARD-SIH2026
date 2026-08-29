@@ -9,6 +9,14 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Safe Import for detection module
+try:
+    import detection
+    HAS_DETECTION = True
+except Exception as e:
+    HAS_DETECTION = False
+    DETECTION_ERROR = str(e)
+
 # Fetch Image safely as Base64 String
 @st.cache_data
 def get_base64_bg(url):
@@ -26,7 +34,6 @@ bg_image_url = "https://i.postimg.cc/rw9dqCGj/bg-drone-png.jpg"
 base64_img = get_base64_bg(bg_image_url)
 
 if base64_img:
-    # Overlay lightened so image shows clearly without pitch-black mask
     bg_style = f"""
     <style>
         .stApp {{
@@ -113,15 +120,44 @@ tab1, tab2 = st.tabs(["📡 Live Command Center", "🛸 3D Drone Digital Twin"])
 
 with tab1:
     col_video, col_map = st.columns([1, 1], gap="large")
+    
+    # --- LEFT COLUMN: Capture Video & AI Detection Stream ---
     with col_video:
         st.subheader("🎥 Live Drone Vision Feed")
         st.caption("Thermal & Optical Survivor Detection Stream (Member 3 - detection.py)")
-        st.markdown("""
-        <div style="height: 400px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
-            [ 📷 Live Video Stream Canvas Container ]
-        </div>
-        """, unsafe_allow_html=True)
+        
+        if not HAS_DETECTION:
+            st.warning(f"⚠️ Detection Module Error: {DETECTION_ERROR}")
+            st.markdown("""
+            <div style="height: 350px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
+                [ Video Stream Container - Detection Module Missing ]
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            run_feed = st.toggle("🔴 Start Live AI Video Feed", value=False)
+            video_frame = st.empty()
+            
+            if run_feed:
+                try:
+                    cap = detection.get_video_stream("synthetic_thermal_rescue.mp4")
+                    while run_feed:
+                        ret, frame = cap.read()
+                        if not ret:
+                            st.info("Video stream completed.")
+                            break
+                        processed_frame, count = detection.detect_survivors(frame)
+                        video_frame.image(processed_frame, channels="BGR", use_container_width=True)
+                except Exception as ex:
+                    st.error(f"Stream execution note: {ex}")
+            else:
+                st.markdown("""
+                <div style="height: 350px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
+                    <p style="margin: 0; font-size: 1.1rem;">📡 STREAM STANDBY</p>
+                    <p style="margin: 5px 0 0 0; color: #64748b; font-size: 0.8rem;">Toggle the switch above to display live AI feed</p>
+                </div>
+                """, unsafe_allow_html=True)
 
+    # --- RIGHT COLUMN: GIS Search Map ---
     with col_map:
         st.subheader("🗺️ GIS Satellite Search Grid")
         st.caption("Real-Time Drone Trajectory & Search Coverage (Member 2 - map_module.py)")
