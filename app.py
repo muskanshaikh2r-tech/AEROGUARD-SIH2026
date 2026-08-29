@@ -1,4 +1,5 @@
 import streamlit as st
+import base64
 
 # Page Configuration
 st.set_page_config(
@@ -8,27 +9,48 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom Styling: Cyan Blueprint Drone Background & Dark Glass Panels
+# Function to load local image as base64 background
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+# Convert uploaded image to base64 string
+try:
+    bin_str = get_base64_of_bin_file('bg_drone.png')
+    bg_style = f'''
+    <style>
+        .stApp {{
+            background: linear-gradient(rgba(5, 12, 22, 0.75), rgba(3, 8, 16, 0.88)), 
+                        url("data:image/png;base64,{bin_str}") !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-attachment: fixed !important;
+            color: #e2e8f0;
+        }}
+    </style>
+    '''
+    st.markdown(bg_style, unsafe_allow_html=True)
+except Exception:
+    # Fallback styling if image is not yet uploaded to GitHub
+    st.markdown("""
+    <style>
+        .stApp {
+            background: radial-gradient(circle at 50% 30%, #0d1e36, #030810) !important;
+            color: #e2e8f0;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Custom Glassmorphic CSS Styling
 st.markdown("""
 <style>
-    /* Full Page Background with Futuristic Cyan Wireframe Drone Overlay */
-    .stApp {
-        background: linear-gradient(rgba(5, 12, 22, 0.82), rgba(3, 8, 16, 0.90)), 
-                    url("https://thumbs.dreamstime.com/b/futuristic-drone-wireframe-blueprint-style-hud-display-background-autonomous-military-unmanned-aerial-vehicle-uav-286828941.jpg") !important;
-        background-size: cover !important;
-        background-position: center !important;
-        background-attachment: fixed !important;
-        color: #e2e8f0;
-    }
-
-    /* Clean Container Spacing */
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
         max-width: 95% !important;
     }
 
-    /* Glowing Tactical Header Banner */
     .poster-banner {
         background: rgba(10, 20, 35, 0.75);
         border: 1px solid rgba(0, 242, 254, 0.4);
@@ -42,7 +64,6 @@ st.markdown("""
         align-items: center;
     }
 
-    /* Glassmorphic Dark Floating Cards for Main Dashboard */
     div[data-testid="stVerticalBlock"] > div {
         background: rgba(8, 15, 28, 0.70) !important;
         backdrop-filter: blur(16px) !important;
@@ -53,7 +74,6 @@ st.markdown("""
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
     }
 
-    /* Upper Tab Navigation Styling */
     button[data-baseweb="tab"] {
         font-size: 1.1rem !important;
         font-weight: 600 !important;
