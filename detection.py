@@ -12,8 +12,7 @@ except Exception:
 
 # YOLO Model Load
 model = YOLO("yolov8n.pt")
-THRESHOLD = 0.15
-CONFIRMATION_TIME = 0.8
+CONFIRMATION_TIME = 0.5  # Quick alert confirmation for demo
 
 audio_level = 0.0
 audio_stream = None
@@ -42,22 +41,29 @@ if AUDIO_SUPPORTED:
 def process_frame(frame, previous_gray=None, alert_start_time=None):
     global audio_level
 
-    # 1. Thermal Simulation
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    thermal = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
+    # 1. Thermal Simulation / Jet ColorMap Mapping
+    if len(frame.shape) == 3:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = frame.copy()
+        frame = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+    # Enhance Contrast for FLIR Thermal detection
+    enhanced_gray = cv2.equalizeHist(gray)
+    thermal = cv2.applyColorMap(enhanced_gray, cv2.COLORMAP_JET)
 
     # 2. Movement Detection
     movement_detected = False
     if previous_gray is not None:
         difference = cv2.absdiff(previous_gray, gray)
-        _, movement_mask = cv2.threshold(difference, 25, 255, cv2.THRESH_BINARY)
+        _, movement_mask = cv2.threshold(difference, 20, 255, cv2.THRESH_BINARY)
         movement_pixels = cv2.countNonZero(movement_mask)
-        movement_detected = movement_pixels > 5000
+        movement_detected = movement_pixels > 1500  # Lower threshold for overhead drone movement
 
     new_previous_gray = gray.copy()
 
-    # 3. Human Detection (YOLO)
-    results = model(frame, verbose=False)
+    # 3. Human Detection (YOLO with lower confidence threshold conf=0.15)
+    results = model(frame, conf=0.15, verbose=False)
     human_detected = False
     best_confidence = 0.0
 
@@ -66,28 +72,43 @@ def process_frame(frame, previous_gray=None, alert_start_time=None):
             class_id = int(box.cls[0])
             confidence = float(box.conf[0])
 
-            if class_id == 0:  # Person
+            # Class 0 = Person (Also check for other close shapes if needed)
+            if class_id == 0:
                 human_detected = True
                 if confidence > best_confidence:
                     best_confidence = confidence
 
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
+                
+                # Draw Red Box on both Original Frame & Thermal Feed
                 cv2.rectangle(thermal, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                
+                label = f"SURVIVOR {confidence * 100:.0f}%"
                 cv2.putText(
                     thermal,
-                    f"HUMAN {confidence * 100:.0f}%",
-                    (x1, max(y1 - 10, 20)),
+                    label,
+                    (x1, max(y1 - 8, 20)),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
+                    0.6,
                     (255, 255, 255),
+                    2
+                )
+                cv2.putText(
+                    frame,
+                    label,
+                    (x1, max(y1 - 8, 20)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 0, 255),
                     2
                 )
 
     # 4. Audio Spike Check
-    audio_spike = audio_level > THRESHOLD if audio_stream is not None else False
+    audio_spike = audio_level > 0.15 if audio_stream is not None else False
 
     # 5. Survivor Conditions
-    survivor_conditions = human_detected and movement_detected
+    survivor_conditions = human_detected
 
     # 6. Alert Confirmation Logic
     confirmed_alert = False
@@ -100,24 +121,25 @@ def process_frame(frame, previous_gray=None, alert_start_time=None):
     else:
         alert_start_time = None
 
-    # 7. Overlay UI Panel
+    # 7. Overlay UI Panel on Thermal Video
     overlay = thermal.copy()
-    cv2.rectangle(overlay, (0, 0), (440, 180), (25, 25, 25), -1)
+    cv2.rectangle(overlay, (0, 0), (420, 160), (25, 25, 25), -1)
     thermal = cv2.addWeighted(overlay, 0.85, thermal, 0.15, 0)
 
-    cv2.putText(thermal, "AEROGUARD AI", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+    cv2.putText(thermal, "AEROGUARD AI VISION", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 242, 254), 2)
 
-    human_text = f"HUMAN: DETECTED {best_confidence * 100:.0f}%" if human_detected else "HUMAN: NOT DETECTED"
-    cv2.putText(thermal, human_text, (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+    human_text = f"SURVIVORS: DETECTED ({best_confidence * 100:.0f}%)" if human_detected else "SURVIVORS: SEARCHING..."
+    human_color = (0, 255, 0) if human_detected else (255, 255, 255)
+    cv2.putText(thermal, human_text, (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.55, human_color, 2)
 
-    movement_text = "MOVEMENT: DETECTED" if movement_detected else "MOVEMENT: NONE"
-    cv2.putText(thermal, movement_text, (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0) if movement_detected else (255, 255, 255), 2)
+    movement_text = "MOTION: DETECTED" if movement_detected else "MOTION: STABLE"
+    cv2.putText(thermal, movement_text, (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0) if movement_detected else (255, 255, 255), 2)
 
-    audio_text = "AUDIO: SPIKE" if audio_spike else ("AUDIO: ACTIVE" if audio_stream else "AUDIO: N/A")
-    cv2.putText(thermal, audio_text, (20, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255) if audio_spike else (255, 255, 255), 2)
+    audio_text = "AUDIO: SPIKE DETECTED" if audio_spike else ("AUDIO: ACTIVE" if audio_stream else "AUDIO: N/A")
+    cv2.putText(thermal, audio_text, (20, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255) if audio_spike else (255, 255, 255), 2)
 
     if confirmed_alert:
-        cv2.rectangle(thermal, (10, 220), (560, 285), (0, 0, 255), 2)
-        cv2.putText(thermal, "POSSIBLE SURVIVOR ALERT", (25, 260), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+        cv2.rectangle(thermal, (10, 180), (450, 230), (0, 0, 255), -1)
+        cv2.putText(thermal, "🚨 SURVIVOR LOCATED!", (20, 215), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
 
     return thermal, new_previous_gray, alert_start_time
