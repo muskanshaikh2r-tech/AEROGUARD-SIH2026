@@ -1,10 +1,5 @@
 streamlit
 opencv-python-headless
 ultralytics
-folium
-streamlit-folium
 numpy
-pandas
-pillow
-plotly
 sounddevice
