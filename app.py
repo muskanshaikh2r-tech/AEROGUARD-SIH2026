@@ -2,7 +2,6 @@ import streamlit as st
 import urllib.request
 import base64
 
-# 1. Page Config
 st.set_page_config(
     page_title="AEROGUARD Command Center",
     page_icon="🛸",
@@ -10,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. Fetch Image safely as Base64 String to avoid CORS/CSS Errors
+# Fetch Image safely as Base64 String
 @st.cache_data
 def get_base64_bg(url):
     try:
@@ -23,35 +22,27 @@ def get_base64_bg(url):
     except Exception:
         return ""
 
-bg_image_url = "https://postimg.cc/k2BMcSpR][img]https://i.postimg.cc/k2BMcSpR/bg-drone-png.jpg[/img]"
+bg_image_url = "https://i.postimg.cc/rw9dqCGj/bg-drone-png.jpg"
 base64_img = get_base64_bg(bg_image_url)
 
-# 3. Custom CSS Injector
 if base64_img:
+    # Overlay lightened so image shows clearly without pitch-black mask
     bg_style = f"""
     <style>
         .stApp {{
-            background: linear-gradient(rgba(5, 12, 22, 0.70), rgba(3, 8, 16, 0.85)), 
+            background: linear-gradient(rgba(5, 12, 22, 0.20), rgba(3, 8, 16, 0.35)), 
                         url("data:image/jpeg;base64,{base64_img}") !important;
             background-size: cover !important;
             background-position: center !important;
+            background-repeat: no-repeat !important;
             background-attachment: fixed !important;
             color: #e2e8f0;
         }}
     </style>
     """
     st.markdown(bg_style, unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <style>
-        .stApp {
-            background-color: #080f1c !important;
-            color: #e2e8f0;
-        }
-    </style>
-    """, unsafe_allow_html=True)
 
-# 4. Glassmorphic Cards Styling
+# UI CSS
 st.markdown("""
 <style>
     .block-container {
@@ -63,7 +54,7 @@ st.markdown("""
     .poster-banner {
         background: rgba(10, 20, 35, 0.75);
         border: 1px solid rgba(0, 242, 254, 0.4);
-        backdrop-filter: blur(16px);
+        backdrop-filter: blur(12px);
         border-radius: 16px;
         padding: 18px 28px;
         margin-bottom: 25px;
@@ -74,9 +65,9 @@ st.markdown("""
     }
 
     div[data-testid="stVerticalBlock"] > div {
-        background: rgba(8, 15, 28, 0.70) !important;
-        backdrop-filter: blur(16px) !important;
-        -webkit-backdrop-filter: blur(16px) !important;
+        background: rgba(8, 15, 28, 0.65) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
         border: 1px solid rgba(0, 242, 254, 0.3) !important;
         border-radius: 16px !important;
         padding: 20px !important;
@@ -96,7 +87,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 5. Header Banner
+# Header & Content
 st.markdown("""
 <div class="poster-banner">
     <div>
@@ -118,22 +109,15 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 6. Navigation Tabs
-tab1, tab2 = st.tabs([
-    "📡 Live Command Center", 
-    "🛸 3D Drone Digital Twin"
-])
+tab1, tab2 = st.tabs(["📡 Live Command Center", "🛸 3D Drone Digital Twin"])
 
-# TAB 1: 2-COLUMN DASHBOARD
 with tab1:
     col_video, col_map = st.columns([1, 1], gap="large")
-    
     with col_video:
         st.subheader("🎥 Live Drone Vision Feed")
         st.caption("Thermal & Optical Survivor Detection Stream (Member 3 - detection.py)")
-        
         st.markdown("""
-        <div style="height: 400px; background: rgba(3, 8, 16, 0.85); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
+        <div style="height: 400px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
             [ 📷 Live Video Stream Canvas Container ]
         </div>
         """, unsafe_allow_html=True)
@@ -141,20 +125,17 @@ with tab1:
     with col_map:
         st.subheader("🗺️ GIS Satellite Search Grid")
         st.caption("Real-Time Drone Trajectory & Search Coverage (Member 2 - map_module.py)")
-        
         st.markdown("""
-        <div style="height: 400px; background: rgba(3, 8, 16, 0.85); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
+        <div style="height: 400px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
             [ 🛰️ Interactive Search Grid Map Container ]
         </div>
         """, unsafe_allow_html=True)
 
-# TAB 2: SEPARATE 3D MODEL
 with tab2:
     st.subheader("⚙️ 3D Digital Twin & Sensor Hardware Architecture")
     st.caption("Interactive Drone Hardware Model & Multi-Sensor Payload Array (Member 4)")
-    
     st.components.v1.html("""
-    <div style="width: 100%; height: 480px; background: rgba(3, 8, 16, 0.85); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0, 242, 254, 0.4);">
+    <div style="width: 100%; height: 480px; background: rgba(3, 8, 16, 0.75); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0, 242, 254, 0.4);">
         <iframe src="https://my.spline.design/dronedemo-a3e74b3e/" frameborder="0" width="100%" height="100%"></iframe>
     </div>
     """, height=500)
