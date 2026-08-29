@@ -1,6 +1,8 @@
 import streamlit as st
+import urllib.request
+import base64
 
-# Page Configuration
+# 1. Page Config
 st.set_page_config(
     page_title="AEROGUARD Command Center",
     page_icon="🛸",
@@ -8,43 +10,56 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom Styling with your exact PostImage Direct Link
+# 2. Fetch Image safely as Base64 String to avoid CORS/CSS Errors
+@st.cache_data
+def get_base64_bg(url):
+    try:
+        req = urllib.request.Request(
+            url, 
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        with urllib.request.urlopen(req) as response:
+            return base64.b64encode(response.read()).decode()
+    except Exception:
+        return ""
+
+bg_image_url = "https://i.postimg.cc/rw9dqCGj/bg-drone-png.jpg"
+base64_img = get_base64_bg(bg_image_url)
+
+# 3. Custom CSS Injector
+if base64_img:
+    bg_style = f"""
+    <style>
+        .stApp {{
+            background: linear-gradient(rgba(5, 12, 22, 0.70), rgba(3, 8, 16, 0.85)), 
+                        url("data:image/jpeg;base64,{base64_img}") !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-attachment: fixed !important;
+            color: #e2e8f0;
+        }}
+    </style>
+    """
+    st.markdown(bg_style, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <style>
+        .stApp {
+            background-color: #080f1c !important;
+            color: #e2e8f0;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+# 4. Glassmorphic Cards Styling
 st.markdown("""
 <style>
-    /* Full Page Background using PostImage Direct Link */
-    .stApp {
-        background: linear-gradient(rgba(5, 12, 22, 0.70), rgba(3, 8, 16, 0.85)), 
-                    url("import streamlit as st
-
-# Page Configuration
-st.set_page_config(
-    page_title="AEROGUARD Command Center",
-    page_icon="🛸",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
-# Custom Styling with your exact PostImage Direct Link
-st.markdown("""
-<style>
-    /* Full Page Background using PostImage Direct Link */
-    .stApp {
-        background: linear-gradient(rgba(5, 12, 22, 0.70), rgba(3, 8, 16, 0.85)), 
-                    url("https://i.postimg.cc/rw9dqCGj/bg-drone-png.jpg") !important;
-        background-size: cover !important;
-        background-position: center !important;
-        background-attachment: fixed !important;
-        color: #e2e8f0;
-    }
-
-    /* Clean Container Spacing */
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
         max-width: 95% !important;
     }
 
-    /* Glowing Poster Header Banner */
     .poster-banner {
         background: rgba(10, 20, 35, 0.75);
         border: 1px solid rgba(0, 242, 254, 0.4);
@@ -58,123 +73,6 @@ st.markdown("""
         align-items: center;
     }
 
-    /* Glassmorphic Dark Floating Cards */
-    div[data-testid="stVerticalBlock"] > div {
-        background: rgba(8, 15, 28, 0.70) !important;
-        backdrop-filter: blur(10px) !important;
-        -webkit-backdrop-filter: blur(10px) !important;
-        border: 1px solid rgba(0, 242, 254, 0.3) !important;
-        border-radius: 16px !important;
-        padding: 20px !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
-    }
-
-    /* Tab Navigation Styling */
-    button[data-baseweb="tab"] {
-        font-size: 1.1rem !important;
-        font-weight: 600 !important;
-        color: #94a3b8 !important;
-        padding: 10px 24px !important;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] {
-        color: #00f2fe !important;
-        border-bottom-color: #00f2fe !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# TOP HEADER BANNER
-st.markdown("""
-<div class="poster-banner">
-    <div>
-        <span style="background: rgba(0, 242, 254, 0.15); border: 1px solid #00f2fe; color: #00f2fe; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.75rem;">
-            AI FOR SOCIAL GOOD
-        </span>
-        <h1 style="margin: 8px 0 0 0; color: #f8fafc; font-weight: 800; font-size: 2rem; letter-spacing: 1px;">
-            🛸 AEROGUARD
-        </h1>
-        <p style="margin: 0; color: #94a3b8; font-size: 0.9rem;">
-            Autonomous AI Drone Simulation & Disaster Rescue Command Center
-        </p>
-    </div>
-    <div style="text-align: right;">
-        <span style="background-color: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.85rem;">
-            🔴 LIVE RESCUE MISSION ACTIVE
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# NAVIGATION TABS
-tab1, tab2 = st.tabs([
-    "📡 Live Command Center", 
-    "🛸 3D Drone Digital Twin"
-])
-
-# TAB 1: CLEAN DASHBOARD (VIDEO + MAP)
-with tab1:
-    col_video, col_map = st.columns([1, 1], gap="large")
-    
-    # LEFT: DRONE VIDEO FEED
-    with col_video:
-        st.subheader("🎥 Live Drone Vision Feed")
-        st.caption("Thermal & Optical Survivor Detection Stream (Member 3 - detection.py)")
-        
-        st.markdown("""
-        <div style="height: 400px; background: rgba(3, 8, 16, 0.85); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
-            [ 📷 Live Video Stream Canvas Container ]
-        </div>
-        """, unsafe_allow_html=True)
-
-    # RIGHT: GIS SATELLITE MAP
-    with col_map:
-        st.subheader("🗺️ GIS Satellite Search Grid")
-        st.caption("Real-Time Drone Trajectory & Search Coverage (Member 2 - map_module.py)")
-        
-        st.markdown("""
-        <div style="height: 400px; background: rgba(3, 8, 16, 0.85); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
-            [ 🛰️ Interactive Search Grid Map Container ]
-        </div>
-        """, unsafe_allow_html=True)
-
-# TAB 2: SEPARATE 3D MODEL SCREEN
-with tab2:
-    st.subheader("⚙️ 3D Digital Twin & Sensor Hardware Architecture")
-    st.caption("Interactive Drone Hardware Model & Multi-Sensor Payload Array (Member 4)")
-    
-    st.components.v1.html("""
-    <div style="width: 100%; height: 480px; background: rgba(3, 8, 16, 0.85); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0, 242, 254, 0.4);">
-        <iframe src="https://my.spline.design/dronedemo-a3e74b3e/" frameborder="0" width="100%" height="100%"></iframe>
-    </div>
-    """, height=500)") !important;
-        background-size: cover !important;
-        background-position: center !important;
-        background-attachment: fixed !important;
-        color: #e2e8f0;
-    }
-
-    /* Clean Container Spacing */
-    .block-container {
-        padding-top: 1.5rem !important;
-        padding-bottom: 2rem !important;
-        max-width: 95% !important;
-    }
-
-    /* Glowing Poster Header Banner */
-    .poster-banner {
-        background: rgba(10, 20, 35, 0.75);
-        border: 1px solid rgba(0, 242, 254, 0.4);
-        backdrop-filter: blur(16px);
-        border-radius: 16px;
-        padding: 18px 28px;
-        margin-bottom: 25px;
-        box-shadow: 0 0 25px rgba(0, 242, 254, 0.15);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    /* Glassmorphic Dark Floating Cards */
     div[data-testid="stVerticalBlock"] > div {
         background: rgba(8, 15, 28, 0.70) !important;
         backdrop-filter: blur(16px) !important;
@@ -185,7 +83,6 @@ with tab2:
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
     }
 
-    /* Tab Navigation Styling */
     button[data-baseweb="tab"] {
         font-size: 1.1rem !important;
         font-weight: 600 !important;
@@ -199,7 +96,7 @@ with tab2:
 </style>
 """, unsafe_allow_html=True)
 
-# TOP HEADER BANNER
+# 5. Header Banner
 st.markdown("""
 <div class="poster-banner">
     <div>
@@ -221,17 +118,16 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# NAVIGATION TABS
+# 6. Navigation Tabs
 tab1, tab2 = st.tabs([
     "📡 Live Command Center", 
     "🛸 3D Drone Digital Twin"
 ])
 
-# TAB 1: CLEAN DASHBOARD (VIDEO + MAP)
+# TAB 1: 2-COLUMN DASHBOARD
 with tab1:
     col_video, col_map = st.columns([1, 1], gap="large")
     
-    # LEFT: DRONE VIDEO FEED
     with col_video:
         st.subheader("🎥 Live Drone Vision Feed")
         st.caption("Thermal & Optical Survivor Detection Stream (Member 3 - detection.py)")
@@ -242,7 +138,6 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-    # RIGHT: GIS SATELLITE MAP
     with col_map:
         st.subheader("🗺️ GIS Satellite Search Grid")
         st.caption("Real-Time Drone Trajectory & Search Coverage (Member 2 - map_module.py)")
@@ -253,7 +148,7 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-# TAB 2: SEPARATE 3D MODEL SCREEN
+# TAB 2: SEPARATE 3D MODEL
 with tab2:
     st.subheader("⚙️ 3D Digital Twin & Sensor Hardware Architecture")
     st.caption("Interactive Drone Hardware Model & Multi-Sensor Payload Array (Member 4)")
