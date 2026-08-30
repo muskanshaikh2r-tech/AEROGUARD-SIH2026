@@ -5,6 +5,7 @@ import tempfile
 import urllib.request
 import base64
 
+# Page Configuration
 st.set_page_config(
     page_title="AEROGUARD Command Center",
     page_icon="🛸",
@@ -12,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Safe Import for detection module
+# Module Imports
 try:
     import detection
     HAS_DETECTION = True
@@ -20,7 +21,6 @@ except Exception as e:
     HAS_DETECTION = False
     DETECTION_ERROR = str(e)
 
-# Safe Import for map module
 try:
     import map_module
     from streamlit_folium import st_folium
@@ -46,7 +46,7 @@ if base64_img:
     bg_style = f"""
     <style>
         .stApp {{
-            background: linear-gradient(rgba(5, 12, 22, 0.20), rgba(3, 8, 16, 0.35)), 
+            background: linear-gradient(rgba(3, 8, 16, 0.45), rgba(3, 8, 16, 0.65)), 
                         url("data:image/jpeg;base64,{base64_img}") !important;
             background-size: cover !important;
             background-position: center !important;
@@ -58,86 +58,124 @@ if base64_img:
     """
     st.markdown(bg_style, unsafe_allow_html=True)
 
-if 'is_fullscreen' not in st.session_state:
-    st.session_state.is_fullscreen = False
-
-css_padding = "0.2rem" if st.session_state.is_fullscreen else "1.5rem"
-css_max_width = "100%" if st.session_state.is_fullscreen else "95%"
-
-st.markdown(f"""
+# CSS Customization
+st.markdown("""
 <style>
-    .block-container {{
-        padding-top: {css_padding} !important;
-        padding-bottom: 2rem !important;
-        max-width: {css_max_width} !important;
-    }}
-
-    .poster-banner {{
-        background: rgba(10, 20, 35, 0.75);
-        border: 1px solid rgba(0, 242, 254, 0.4);
-        backdrop-filter: blur(12px);
-        border-radius: 16px;
-        padding: 18px 28px;
-        margin-bottom: 20px;
-        box-shadow: 0 0 25px rgba(0, 242, 254, 0.15);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }}
-
-    div[data-testid="stVerticalBlock"] > div {{
-        background: rgba(8, 15, 28, 0.65) !important;
-        backdrop-filter: blur(12px) !important;
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+        max-width: 98% !important;
+    }
+    div[data-testid="stVerticalBlock"] > div {
+        background: rgba(8, 15, 28, 0.75) !important;
+        backdrop-filter: blur(10px) !important;
         border: 1px solid rgba(0, 242, 254, 0.3) !important;
-        border-radius: 16px !important;
-        padding: 18px !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
-    }}
+        border-radius: 12px !important;
+        padding: 15px !important;
+    }
+    .main-title {
+        font-size: 3.5rem;
+        font-weight: 900;
+        color: #00f2fe;
+        text-shadow: 0 0 20px rgba(0, 242, 254, 0.6);
+        margin-bottom: 0px;
+    }
+    .sub-title {
+        font-size: 1.2rem;
+        color: #94a3b8;
+        margin-bottom: 30px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Header Banner
-st.markdown("""
-<div class="poster-banner">
-    <div>
-        <span style="background: rgba(0, 242, 254, 0.15); border: 1px solid #00f2fe; color: #00f2fe; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.75rem;">
-            AI FOR SOCIAL GOOD
-        </span>
-        <h1 style="margin: 8px 0 0 0; color: #f8fafc; font-weight: 800; font-size: 2rem; letter-spacing: 1px;">
-            🛸 AEROGUARD
-        </h1>
-        <p style="margin: 0; color: #94a3b8; font-size: 0.9rem;">
-            Autonomous AI Drone Simulation & Disaster Rescue Command Center
-        </p>
-    </div>
-    <div style="text-align: right;">
-        <span style="background-color: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.85rem;">
-            🔴 LIVE RESCUE MISSION ACTIVE
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+# Navigation State Logic
+if 'page' not in st.session_state:
+    st.session_state.page = 'landing'
 
-col_btn1, col_btn2 = st.columns([8, 2])
-with col_btn2:
-    if st.button("🖥️ Toggle Fullscreen View"):
-        st.session_state.is_fullscreen = not st.session_state.is_fullscreen
-        st.rerun()
-
-tab1, tab2 = st.tabs(["📡 Live Command Center", "🛸 3D Drone Digital Twin"])
-
-with tab1:
-    col_video, col_map = st.columns([1, 1], gap="large")
+# ==========================================
+# PAGE 1: LANDING PAGE (ENTRY PAGE)
+# ==========================================
+if st.session_state.page == 'landing':
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
     
-    # --- LEFT COLUMN: Video Stream & YOLO Detection ---
-    with col_video:
-        st.subheader("🎥 Live Drone Vision Feed")
-        st.caption("Thermal & Optical Survivor Detection Stream (Member 3 - detection.py)")
+    with col2:
+        st.markdown("""
+        <div style="text-align: center; background: rgba(5, 12, 22, 0.85); padding: 40px; border-radius: 20px; border: 2px solid #00f2fe; box-shadow: 0 0 30px rgba(0,242,254,0.3);">
+            <h1 class="main-title">🛸 AEROGUARD</h1>
+            <p class="sub-title">Autonomous AI Drone Simulation & Disaster Rescue Command Center</p>
+            <p style="color: #cbd5e1; font-size: 0.95rem;">Real-time FLIR Thermal AI Detection • GIS Trajectory Tracking • 3D Digital Twin</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        source_type = st.radio("Input Source:", ["Upload Video File (MP4)", "Live Webcam Capture"], horizontal=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🚀 LAUNCH COMMAND CENTER", use_container_width=True, type="primary"):
+            st.session_state.page = 'dashboard'
+            st.rerun()
 
-        if source_type == "Upload Video File (MP4)":
-            uploaded_file = st.file_uploader("Upload video file...", type=["mp4", "avi", "mov"])
+# ==========================================
+# PAGE 2: MAIN COMMAND CENTER (3 BUTTON NAVIGATION)
+# ==========================================
+else:
+    # Header Banner
+    st.markdown("""
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: rgba(10, 20, 35, 0.85); border-radius: 12px; border: 1px solid #00f2fe; margin-bottom: 15px;">
+        <div>
+            <h2 style="margin: 0; color: #00f2fe;">🛸 AEROGUARD COMMAND CENTER</h2>
+        </div>
+        <div>
+            <span style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; padding: 6px 14px; border-radius: 15px; font-weight: bold; font-size: 0.8rem;">
+                🔴 LIVE MISSION ACTIVE
+            </span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 3 Navigation Tabs / Buttons at Top
+    nav_tab = st.radio(
+        "Navigation Menu", 
+        ["ℹ️ AeroGuard Info", "🗺️ Map & Live Simulation", "⚙️ 3D Digital Twin Model"], 
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+
+    # ----------------------------------------------------
+    # TAB 1: AEROGUARD INFO
+    # ----------------------------------------------------
+    if nav_tab == "ℹ️ AeroGuard Info":
+        st.markdown("### ℹ️ About AeroGuard Disaster Rescue System")
+        
+        col_info1, col_info2 = st.columns([1, 1], gap="medium")
+        
+        with col_info1:
+            st.markdown("""
+            #### 🎯 Project Overview
+            **AeroGuard** is an AI-powered autonomous drone simulation framework designed for disaster response operations (Earthquakes, Floods, Collapsed Structures).
+            
+            * **FLIR Thermal AI Vision:** Uses YOLO computer vision models to locate trapped human survivors in zero-visibility conditions.
+            * **GIS Mapping:** Real-time satellite grid positioning for rescue squad deployment.
+            * **Payload Architecture:** Multi-sensor array including optical, thermal, and sound telemetry.
+            """)
+            
+        with col_info2:
+            st.markdown("""
+            #### 👥 Team Roles & Responsibilities
+            * **Member 1 (Team Leader):** UI System Architecture, Integration & Master Command Center.
+            * **Member 2 (GIS Lead):** Satellite Mapping, Drone Trajectory & Geolocation Grid (`map_module.py`).
+            * **Member 3 (AI Lead):** YOLO Thermal Human Detection Engine & Processing (`detection.py`).
+            * **Member 4 (Hardware Lead):** 3D Digital Twin Hardware & Payload Model (`Spline`).
+            """)
+
+    # ----------------------------------------------------
+    # TAB 2: MAP & LIVE SIMULATION (EXACT 50-50 SPLIT VIEW)
+    # ----------------------------------------------------
+    elif nav_tab == "🗺️ Map & Live Simulation":
+        col_video, col_map = st.columns([1, 1], gap="medium")
+        
+        # Left Half: Thermal Video Feed + Upload
+        with col_video:
+            st.markdown("#### 🎥 FLIR Thermal Vision Stream")
+            uploaded_file = st.file_uploader("Upload Drone Thermal Video (.mp4)", type=["mp4", "avi", "mov"])
             
             if uploaded_file is not None:
                 tfile = tempfile.NamedTemporaryFile(delete=False)
@@ -145,7 +183,7 @@ with tab1:
                 
                 cap = cv2.VideoCapture(tfile.name)
                 st_frame = st.empty()
-                run_video = st.checkbox("▶️ Start AI Detection Stream", value=True)
+                run_video = st.checkbox("▶️ Run AI Survivor Detection", value=True)
                 
                 prev_gray = None
                 alert_time = None
@@ -153,7 +191,7 @@ with tab1:
                 while run_video and cap.isOpened():
                     ret, frame = cap.read()
                     if not ret:
-                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Continuous Loop
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                         continue
                     
                     frame = cv2.resize(frame, (640, 480))
@@ -166,45 +204,34 @@ with tab1:
                     else:
                         st_frame.image(frame, channels="BGR", use_container_width=True)
                 cap.release()
-        else:
-            if HAS_DETECTION:
-                camera_buffer = st.camera_input("Capture Webcam Frame")
-                if camera_buffer is not None:
-                    bytes_data = camera_buffer.getvalue()
-                    frame = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-                    
-                    if 'prev_gray' not in st.session_state:
-                        st.session_state.prev_gray = None
-                    if 'alert_time' not in st.session_state:
-                        st.session_state.alert_time = None
+            else:
+                st.info("👆 Please upload the Thermal Drone MP4 Video to start live detection stream.")
 
-                    processed_frame, st.session_state.prev_gray, st.session_state.alert_time = detection.process_frame(
-                        frame, st.session_state.prev_gray, st.session_state.alert_time
-                    )
-                    st.image(processed_frame, channels="BGR", use_container_width=True)
+        # Right Half: GIS Satellite Search Grid Map
+        with col_map:
+            st.markdown("#### 🗺️ GPS Topographical Satellite Map")
+            if HAS_MAP and hasattr(map_module, 'get_map'):
+                try:
+                    m = map_module.get_map()
+                    st_folium(m, width="100%", height=500)
+                except Exception as e:
+                    st.error(f"Map Rendering Note: {e}")
+            else:
+                st.markdown("""
+                <div style="height: 500px; background: rgba(3, 8, 16, 0.85); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
+                    [ 🛰️ Interactive GPS Search Grid Container Loading ]
+                </div>
+                """, unsafe_allow_html=True)
 
-    # --- RIGHT COLUMN: GIS Satellite Map ---
-    with col_map:
-        st.subheader("🗺️ GIS Satellite Search Grid")
-        st.caption("Real-Time Drone Trajectory & Search Coverage (Member 2 - map_module.py)")
+    # ----------------------------------------------------
+    # TAB 3: 3D DIGITAL TWIN & CONNECTIONS
+    # ----------------------------------------------------
+    elif nav_tab == "⚙️ 3D Digital Twin Model":
+        st.markdown("#### ⚙️ 3D Drone Hardware Model & Sensor Payload")
+        st.caption("Interactive hardware visualization and multi-sensor connectivity dashboard.")
         
-        if HAS_MAP and hasattr(map_module, 'get_map'):
-            try:
-                m = map_module.get_map()
-                st_folium(m, width="100%", height=520)
-            except Exception as e:
-                st.error(f"Map Rendering Error: {e}")
-        else:
-            st.markdown("""
-            <div style="height: 520px; background: rgba(3, 8, 16, 0.75); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00f2fe; font-family: monospace;">
-                [ 🛰️ Interactive Search Grid Map Loading ]
-            </div>
-            """, unsafe_allow_html=True)
-
-with tab2:
-    st.subheader("⚙️ 3D Digital Twin & Sensor Hardware Architecture")
-    st.components.v1.html("""
-    <div style="width: 100%; height: 480px; background: rgba(3, 8, 16, 0.75); border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0, 242, 254, 0.4);">
-        <iframe src="https://my.spline.design/dronedemo-a3e74b3e/" frameborder="0" width="100%" height="100%"></iframe>
-    </div>
-    """, height=500)
+        st.components.v1.html("""
+        <div style="width: 100%; height: 500px; background: rgba(3, 8, 16, 0.75); border-radius: 12px; border: 1px solid rgba(0, 242, 254, 0.4);">
+            <iframe src="https://my.spline.design/dronedemo-a3e74b3e/" frameborder="0" width="100%" height="100%"></iframe>
+        </div>
+        """, height=520)
