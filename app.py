@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Module Imports
+# Safe Imports
 try:
     import detection
     HAS_DETECTION = True
@@ -88,7 +88,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Navigation State Logic
+# Page State Setup
 if 'page' not in st.session_state:
     st.session_state.page = 'landing'
 
@@ -117,7 +117,6 @@ if st.session_state.page == 'landing':
 # PAGE 2: MAIN COMMAND CENTER (3 BUTTON NAVIGATION)
 # ==========================================
 else:
-    # Header Banner
     st.markdown("""
     <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: rgba(10, 20, 35, 0.85); border-radius: 12px; border: 1px solid #00f2fe; margin-bottom: 15px;">
         <div>
@@ -131,7 +130,6 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # 3 Navigation Tabs / Buttons at Top
     nav_tab = st.radio(
         "Navigation Menu", 
         ["ℹ️ AeroGuard Info", "🗺️ Map & Live Simulation", "⚙️ 3D Digital Twin Model"], 
@@ -154,16 +152,16 @@ else:
             
             * **FLIR Thermal AI Vision:** Uses YOLO computer vision models to locate trapped human survivors in zero-visibility conditions.
             * **GIS Mapping:** Real-time satellite grid positioning for rescue squad deployment.
-            * **Payload Architecture:** Multi-sensor array including optical, thermal, and sound telemetry.
+            * **Payload Architecture:** Multi-sensor array including optical, thermal, and telemetry data.
             """)
             
         with col_info2:
             st.markdown("""
-            #### 👥 Team Roles & Responsibilities
-            * **Member 1 (Team Leader):** UI System Architecture, Integration & Master Command Center.
-            * **Member 2 (GIS Lead):** Satellite Mapping, Drone Trajectory & Geolocation Grid (`map_module.py`).
-            * **Member 3 (AI Lead):** YOLO Thermal Human Detection Engine & Processing (`detection.py`).
-            * **Member 4 (Hardware Lead):** 3D Digital Twin Hardware & Payload Model (`Spline`).
+            #### 👥 Team Roles & System Architecture
+            * **Member 1 (Team Leader):** Master UI Command Center, System Integration & Control Logic.
+            * **Member 2 (GIS Lead):** Geolocation Satellite Search Grid & Trajectory Mapping (`map_module.py`).
+            * **Member 3 (AI Lead):** Thermal Computer Vision Engine & Survivor Bounding Box (`detection.py`).
+            * **Member 4 (Hardware Lead):** Interactive 3D Drone Model & Sensor Array (`Spline`).
             """)
 
     # ----------------------------------------------------
@@ -172,7 +170,7 @@ else:
     elif nav_tab == "🗺️ Map & Live Simulation":
         col_video, col_map = st.columns([1, 1], gap="medium")
         
-        # Left Half: Thermal Video Feed + Upload
+        # Left Side: FLIR Video Feed
         with col_video:
             st.markdown("#### 🎥 FLIR Thermal Vision Stream")
             uploaded_file = st.file_uploader("Upload Drone Thermal Video (.mp4)", type=["mp4", "avi", "mov"])
@@ -205,9 +203,9 @@ else:
                         st_frame.image(frame, channels="BGR", use_container_width=True)
                 cap.release()
             else:
-                st.info("👆 Please upload the Thermal Drone MP4 Video to start live detection stream.")
+                st.info("👆 Please upload the Thermal MP4 Video file to start live AI detection stream.")
 
-        # Right Half: GIS Satellite Search Grid Map
+        # Right Side: Satellite Map View
         with col_map:
             st.markdown("#### 🗺️ GPS Topographical Satellite Map")
             if HAS_MAP and hasattr(map_module, 'get_map'):
@@ -224,7 +222,7 @@ else:
                 """, unsafe_allow_html=True)
 
     # ----------------------------------------------------
-    # TAB 3: 3D DIGITAL TWIN & CONNECTIONS
+    # TAB 3: 3D DIGITAL TWIN
     # ----------------------------------------------------
     elif nav_tab == "⚙️ 3D Digital Twin Model":
         st.markdown("#### ⚙️ 3D Drone Hardware Model & Sensor Payload")
