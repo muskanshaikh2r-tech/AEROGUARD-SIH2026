@@ -2,10 +2,10 @@ import os
 import time
 import math
 import tempfile
+import textwrap
 from pathlib import Path
 
 import streamlit as st
-
 
 # Optional scientific / vision modules.
 # The application keeps running even when one of these packages is unavailable.
@@ -41,16 +41,33 @@ except Exception:
 # AEROGUARD — AI-POWERED EARTHQUAKE DISASTER MANAGEMENT SYSTEM
 # -------------------------------------------------------------------
 
+BASE_DIR = Path(__file__).resolve().parent
+BG_IMAGE = BASE_DIR / "bg_image.png"
+DRONE_LOGO = BASE_DIR / "drone_logo.png"
+LOCAL_DRONE_MODEL = BASE_DIR / "drone.glb"
+
+try:
+    from PIL import Image
+    fav_icon = Image.open(DRONE_LOGO) if DRONE_LOGO.exists() else "✈"
+except Exception:
+    fav_icon = str(DRONE_LOGO) if DRONE_LOGO.exists() else "✈"
+
 st.set_page_config(
     page_title="AeroGuard | Disaster Management",
-    page_icon="✈",
+    page_icon=fav_icon,
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-BASE_DIR = Path(__file__).resolve().parent
-BG_IMAGE = BASE_DIR / "bg_image.png"
-LOCAL_DRONE_MODEL = BASE_DIR / "drone.glb"
+def get_logo_uri():
+    if DRONE_LOGO.exists():
+        import base64
+        try:
+            encoded = base64.b64encode(DRONE_LOGO.read_bytes()).decode("utf-8")
+            return f"data:image/png;base64,{encoded}"
+        except Exception:
+            return ""
+    return ""
 
 # You can replace this with your own hosted/local model.
 # If drone.glb exists beside app.py, it is preferred.
@@ -100,6 +117,24 @@ def inject_css():
             radial-gradient(circle at 25% 75%, rgba(239,68,68,.08), transparent 25%),
             linear-gradient(135deg, #02050a 0%, #07111d 50%, #02050a 100%);
         """
+
+    logo_uri = get_logo_uri()
+    if logo_uri:
+        st.markdown(
+            f"""
+            <script>
+            var links = document.querySelectorAll("link[rel*='icon']");
+            links.forEach(function(link) {{ link.href = '{logo_uri}'; }});
+            if (links.length === 0) {{
+                var newLink = document.createElement('link');
+                newLink.rel = 'icon';
+                newLink.href = '{logo_uri}';
+                document.head.appendChild(newLink);
+            }}
+            </script>
+            """,
+            unsafe_allow_html=True,
+        )
 
     st.markdown(
         f"""
@@ -152,20 +187,33 @@ def inject_css():
         }}
 
         header[data-testid="stHeader"] {{
-            background: rgba(0,0,0,0);
+            display: none !important;
+        }}
+
+        [data-testid="stToolbar"] {{
+            display: none !important;
+        }}
+
+        #MainMenu {{
+            visibility: hidden !important;
+            display: none !important;
+        }}
+
+        [data-testid="stHeaderActionElements"] {{
+            display: none !important;
         }}
 
         [data-testid="stSidebar"] {{
-            display: none;
+            display: none !important;
         }}
 
         .topbar {{
-            height: 72px;
+            min-height: 82px;
             border-bottom: 1px solid rgba(56,189,248,.22);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 18px;
+            padding: 8px 20px;
             margin-bottom: 38px;
             background: rgba(1,7,13,.52);
             backdrop-filter: blur(12px);
@@ -174,28 +222,25 @@ def inject_css():
 
         .brand {{
             display: flex;
-            gap: 14px;
+            gap: 6px;
             align-items: center;
         }}
 
         .brand-mark {{
-            width: 46px;
-            height: 46px;
-            border: 1px solid var(--cyan);
-            color: var(--cyan);
-            display: grid;
-            place-items: center;
-            font-size: 25px;
-            border-radius: 8px;
-            box-shadow: 0 0 22px rgba(56,189,248,.20);
-            background: rgba(56,189,248,.05);
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-left: 24px;
         }}
 
         .brand-name {{
             font-family: 'Orbitron', sans-serif;
-            font-size: 22px;
+            font-size: 26px;
             font-weight: 800;
-            letter-spacing: 3px;
+            letter-spacing: 3.5px;
         }}
 
         .brand-name span {{
@@ -203,10 +248,14 @@ def inject_css():
         }}
 
         .brand-sub {{
-            color: #7e93a7;
-            font-size: 11px;
-            letter-spacing: 2.2px;
-            margin-top: 2px;
+            color: #67e8f9;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2.8px;
+            text-transform: uppercase;
+            margin-top: 1px;
+            text-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
         }}
 
         .status {{
@@ -224,8 +273,8 @@ def inject_css():
         }}
 
         .hero {{
-            padding: 35px 0 20px 4%;
-            min-height: 540px;
+            padding: 35px 0 4px 4%;
+            min-height: auto;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -264,28 +313,96 @@ def inject_css():
             box-shadow: 0 0 15px rgba(56,189,248,.6);
         }}
 
-        .hero-copy {{
-            max-width: 620px;
-            color: #a9bac9;
-            font-size: 18px;
-            line-height: 1.45;
-            letter-spacing: .35px;
+        .mission-hud {{
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            margin: 6px 0 36px 0;
+            padding: 0 4%;
         }}
 
-        .drone-float {{
-            position: absolute;
-            right: 10%;
-            top: 23%;
-            font-size: 90px;
-            opacity: .15;
-            filter: drop-shadow(0 0 30px var(--cyan));
-            animation: hoverDrone 4s ease-in-out infinite;
-            pointer-events: none;
+        .mission-hud-text {{
+            flex: 1;
         }}
 
-        @keyframes hoverDrone {{
-            0%, 100% {{ transform: translateY(0) rotate(-2deg); }}
-            50% {{ transform: translateY(-18px) rotate(2deg); }}
+        .mission-label {{
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--cyan);
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            text-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
+            margin-bottom: 10px;
+        }}
+
+        .mission-heading {{
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(28px, 3.5vw, 46px);
+            font-weight: 800;
+            color: #f0f9ff;
+            letter-spacing: 2px;
+            line-height: 1.1;
+            margin: 0 0 16px 0;
+            text-shadow: 0 0 40px rgba(56,189,248,.2), 0 4px 20px rgba(0,0,0,.7);
+        }}
+
+        .mission-heading span {{
+            color: var(--cyan);
+        }}
+
+        .mission-desc {{
+            color: #c4daea;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: clamp(20px, 2.2vw, 28px);
+            font-weight: 500;
+            line-height: 1.5;
+            letter-spacing: 0.4px;
+            margin: 0;
+            max-width: 680px;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+        }}
+
+        .recon-drone-wrap {{
+            flex-shrink: 0;
+            width: 260px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: floatRecon 4s ease-in-out infinite;
+            filter:
+                drop-shadow(0 0 22px rgba(56,189,248,.55))
+                drop-shadow(0 0 55px rgba(56,189,248,.18));
+        }}
+
+        .recon-drone-wrap svg {{
+            width: 100%;
+            height: auto;
+            overflow: visible;
+        }}
+
+        @keyframes floatRecon {{
+            0%, 100% {{ transform: translateY(0px) rotate(-1.2deg); }}
+            50% {{ transform: translateY(-12px) rotate(1.2deg); }}
+        }}
+
+        .optic-lens {{
+            animation: pulseLens 2.2s ease-in-out infinite;
+        }}
+
+        @keyframes pulseLens {{
+            0%, 100% {{ fill: #38bdf8; opacity: 1; }}
+            50% {{ fill: #67e8f9; opacity: 0.7; }}
+        }}
+
+        .rotor-spin {{
+            transform-origin: center;
+            animation: rotorSpin 0.18s linear infinite;
+        }}
+
+        @keyframes rotorSpin {{
+            from {{ transform: rotate(0deg); }}
+            to {{ transform: rotate(360deg); }}
         }}
 
         .feature-strip {{
@@ -309,31 +426,82 @@ def inject_css():
             color: var(--cyan);
         }}
 
-        .metric-panel {{
-            border-top: 1px solid rgba(56,189,248,.22);
-            border-bottom: 1px solid rgba(56,189,248,.16);
-            background: rgba(1,7,13,.70);
-            padding: 18px 25px;
-            margin-top: 12px;
+        .detection-pipeline {{
+            border-top: 1px solid rgba(56,189,248,.18);
+            border-bottom: 1px solid rgba(56,189,248,.10);
+            background: rgba(1,7,13,.65);
+            padding: 18px 30px;
+            margin-top: 14px;
             backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0;
         }}
 
-        .metric-label {{
-            color: #6e8295;
-            font-size: 11px;
-            letter-spacing: 1.5px;
+        .pipeline-stage {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 7px;
+            flex: 1;
         }}
 
-        .metric-value {{
+        .pipeline-icon {{
+            width: 36px;
+            height: 36px;
+            border: 1px solid rgba(56,189,248,.35);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(56,189,248,.06);
+            box-shadow: 0 0 12px rgba(56,189,248,.12);
+        }}
+
+        .pipeline-icon svg {{
+            width: 18px;
+            height: 18px;
+        }}
+
+        .pipeline-name {{
             font-family: 'Orbitron', sans-serif;
-            color: #e8f7ff;
-            font-size: 25px;
-            margin-top: 4px;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--cyan);
+            letter-spacing: 1.5px;
+            text-align: center;
+            text-transform: uppercase;
+            white-space: nowrap;
         }}
 
-        .metric-value.green {{ color: var(--green); }}
-        .metric-value.red {{ color: #ff5e5e; }}
-        .metric-value.cyan {{ color: var(--cyan); }}
+        .pipeline-sub {{
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 10px;
+            color: #4e6577;
+            letter-spacing: 1px;
+            text-align: center;
+            text-transform: uppercase;
+        }}
+
+        .pipeline-arrow {{
+            color: rgba(56,189,248,.30);
+            font-size: 18px;
+            flex-shrink: 0;
+            padding: 0 6px;
+            margin-bottom: 20px;
+            letter-spacing: -2px;
+        }}
+
+        .pipeline-stage.final .pipeline-icon {{
+            border-color: rgba(34,197,94,.50);
+            background: rgba(34,197,94,.08);
+            box-shadow: 0 0 16px rgba(34,197,94,.18);
+        }}
+
+        .pipeline-stage.final .pipeline-name {{
+            color: var(--green);
+        }}
 
         .page-title {{
             font-family: 'Orbitron', sans-serif;
@@ -460,30 +628,24 @@ def go(page):
 
 
 def render_topbar():
-    left, right = st.columns([4, 1])
-    with left:
-        st.markdown(
-            """
-            <div class="brand">
-                <div class="brand-mark">✈</div>
-                <div>
-                    <div class="brand-name">AERO<span>GUARD</span></div>
-                    <div class="brand-sub">AI-POWERED EARTHQUAKE DISASTER MANAGEMENT</div>
-                </div>
+    logo_uri = get_logo_uri()
+    logo_content = (
+        f'<img src="{logo_uri}" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 12px rgba(56,189,248,0.6));" />'
+        if logo_uri
+        else '<svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" width="34" height="34"><circle cx="17" cy="17" r="15" stroke="#38bdf8" stroke-width="1.4" opacity="0.5"/><circle cx="17" cy="17" r="10" stroke="#38bdf8" stroke-width="1.4" opacity="0.75"/><circle cx="17" cy="17" r="5" stroke="#38bdf8" stroke-width="1.4"/><circle cx="17" cy="17" r="1.8" fill="#38bdf8"/><line x1="17" y1="1" x2="17" y2="6" stroke="#38bdf8" stroke-width="1.4" stroke-linecap="round"/><line x1="17" y1="28" x2="17" y2="33" stroke="#38bdf8" stroke-width="1.4" stroke-linecap="round"/><line x1="1" y1="17" x2="6" y2="17" stroke="#38bdf8" stroke-width="1.4" stroke-linecap="round"/><line x1="28" y1="17" x2="33" y2="17" stroke="#38bdf8" stroke-width="1.4" stroke-linecap="round"/></svg>'
+    )
+    st.markdown(
+        f"""
+        <div class="brand">
+            <div class="brand-mark">{logo_content}</div>
+            <div>
+                <div class="brand-name">AERO<span>GUARD</span></div>
+                <div class="brand-sub">Smart Drone System</div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with right:
-        st.markdown(
-            """
-            <div class="status">
-                SYSTEM STATUS&nbsp;&nbsp;
-                <span class="status-dot">● OPERATIONAL</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_back_button():
@@ -501,33 +663,17 @@ def render_home():
     render_topbar()
 
     st.markdown(
-        """
-        <div class="drone-float">🚁</div>
+        """<div class="hero"><div class="eyebrow">MISSION ACTIVE • LOCATE • ANALYZE • RESCUE</div><h1 class="hero-title">AERO<span class="accent">GUARD</span><br>DISASTER<br>COMMAND SYSTEM</h1></div>""",
+        unsafe_allow_html=True,
+    )
 
-        <section class="hero">
-            <div class="eyebrow">EARTHQUAKE RESPONSE • AUTONOMOUS INTELLIGENCE</div>
-            <h1 class="hero-title">
-                AERO<span class="accent">GUARD</span><br>
-                DISASTER<br>
-                COMMAND SYSTEM
-            </h1>
-            <div class="hero-line"></div>
-            <p class="hero-copy">
-                An AI-powered disaster management simulation that combines
-                thermal vision, acoustic intelligence, micro-motion analysis,
-                survivor detection and GIS evacuation mapping to accelerate
-                earthquake rescue operations.
-            </p>
-
-            <div class="feature-strip">
-                <span class="chip"><b>THERMAL</b> SURVIVOR SCAN</span>
-                <span class="chip"><b>AI</b> HUMAN DETECTION</span>
-                <span class="chip"><b>GIS</b> EVACUATION MAP</span>
-                <span class="chip"><b>AUDIO</b> DISTRESS SIGNALS</span>
-                <span class="chip"><b>MOTION</b> MICRO-MOVEMENT</span>
-            </div>
-        </section>
-        """,
+    st.markdown(
+        '<div class="mission-hud">'
+        '<div class="mission-hud-text">'
+        '<div class="mission-label">MISSION</div>'
+        '<div class="mission-desc">A multi-sensor drone swarm identifies human presence beneath debris and transmits precise locations to responders.</div>'
+        '</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -543,35 +689,80 @@ def render_home():
             go("SIMULATION")
 
     st.markdown(
-        """
-        <div class="metric-panel">
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:20px;">
-                <div>
-                    <div class="metric-label">DRONES READY</div>
-                    <div class="metric-value cyan">05 / 12</div>
-                </div>
-                <div>
-                    <div class="metric-label">BATTERY STATUS</div>
-                    <div class="metric-value green">78%</div>
-                </div>
-                <div>
-                    <div class="metric-label">AREA COVERED</div>
-                    <div class="metric-value">2.45 km²</div>
-                </div>
-                <div>
-                    <div class="metric-label">SURVIVORS DETECTED</div>
-                    <div class="metric-value red">07</div>
-                </div>
-                <div>
-                    <div class="metric-label">EARTHQUAKE ZONE</div>
-                    <div class="metric-value cyan">ACTIVE</div>
-                </div>
-            </div>
-        </div>
-        <div class="footer-note">
-            AEROGUARD // TACTICAL DISASTER INTELLIGENCE PLATFORM // SIMULATION MODE
-        </div>
-        """,
+        '<div class="detection-pipeline">'
+
+        # Stage 1 — Thermal Scan
+        '<div class="pipeline-stage">'
+        '<div class="pipeline-icon"><svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        '<rect x="3" y="3" width="14" height="14" rx="2" stroke="#38bdf8" stroke-width="1.4"/>'
+        '<circle cx="10" cy="10" r="3" stroke="#ef4444" stroke-width="1.4"/>'
+        '<circle cx="10" cy="10" r="1" fill="#ef4444"/>'
+        '<line x1="10" y1="3" x2="10" y2="5.5" stroke="#38bdf8" stroke-width="1.2"/>'
+        '<line x1="10" y1="14.5" x2="10" y2="17" stroke="#38bdf8" stroke-width="1.2"/>'
+        '<line x1="3" y1="10" x2="5.5" y2="10" stroke="#38bdf8" stroke-width="1.2"/>'
+        '<line x1="14.5" y1="10" x2="17" y2="10" stroke="#38bdf8" stroke-width="1.2"/>'
+        '</svg></div>'
+        '<div class="pipeline-name">Thermal Scan</div>'
+        '<div class="pipeline-sub">Heat Signature</div>'
+        '</div>'
+
+        '<div class="pipeline-arrow">›</div>'
+
+        # Stage 2 — Acoustic Analysis
+        '<div class="pipeline-stage">'
+        '<div class="pipeline-icon"><svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        '<path d="M10 4 Q10 10 10 16" stroke="#38bdf8" stroke-width="1.4" stroke-linecap="round"/>'
+        '<path d="M6 7 Q4 10 6 13" stroke="#38bdf8" stroke-width="1.2" stroke-linecap="round" fill="none"/>'
+        '<path d="M14 7 Q16 10 14 13" stroke="#38bdf8" stroke-width="1.2" stroke-linecap="round" fill="none"/>'
+        '<path d="M3 5.5 Q0 10 3 14.5" stroke="#38bdf8" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.4"/>'
+        '<path d="M17 5.5 Q20 10 17 14.5" stroke="#38bdf8" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.4"/>'
+        '</svg></div>'
+        '<div class="pipeline-name">Acoustic Analysis</div>'
+        '<div class="pipeline-sub">Distress Signals</div>'
+        '</div>'
+
+        '<div class="pipeline-arrow">›</div>'
+
+        # Stage 3 — Micro-Movement
+        '<div class="pipeline-stage">'
+        '<div class="pipeline-icon"><svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        '<polyline points="2,14 5,9 8,12 11,6 14,10 17,5" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+        '<circle cx="11" cy="6" r="1.8" fill="rgba(56,189,248,0.25)" stroke="#38bdf8" stroke-width="1"/>'
+        '</svg></div>'
+        '<div class="pipeline-name">Micro-Movement</div>'
+        '<div class="pipeline-sub">Motion Detection</div>'
+        '</div>'
+
+        '<div class="pipeline-arrow">›</div>'
+
+        # Stage 4 — Target Confirmation
+        '<div class="pipeline-stage">'
+        '<div class="pipeline-icon"><svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        '<circle cx="10" cy="10" r="8" stroke="#38bdf8" stroke-width="1.3" opacity="0.5"/>'
+        '<circle cx="10" cy="10" r="5" stroke="#38bdf8" stroke-width="1.3" opacity="0.75"/>'
+        '<circle cx="10" cy="10" r="2" stroke="#38bdf8" stroke-width="1.3"/>'
+        '<circle cx="10" cy="10" r="0.8" fill="#38bdf8"/>'
+        '<line x1="10" y1="1" x2="10" y2="3.5" stroke="#38bdf8" stroke-width="1.2"/>'
+        '<line x1="10" y1="16.5" x2="10" y2="19" stroke="#38bdf8" stroke-width="1.2"/>'
+        '<line x1="1" y1="10" x2="3.5" y2="10" stroke="#38bdf8" stroke-width="1.2"/>'
+        '<line x1="16.5" y1="10" x2="19" y2="10" stroke="#38bdf8" stroke-width="1.2"/>'
+        '</svg></div>'
+        '<div class="pipeline-name">Target Confirmation</div>'
+        '<div class="pipeline-sub">AI Verification</div>'
+        '</div>'
+
+        '<div class="pipeline-arrow">›</div>'
+
+        # Stage 5 — Rescue (green accent)
+        '<div class="pipeline-stage final">'
+        '<div class="pipeline-icon"><svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        '<path d="M10 2 L12.5 7.5 H18.5 L14 11.5 L16 17.5 L10 14 L4 17.5 L6 11.5 L1.5 7.5 H7.5 Z" stroke="#22c55e" stroke-width="1.3" stroke-linejoin="round" fill="rgba(34,197,94,0.1)"/>'
+        '</svg></div>'
+        '<div class="pipeline-name">Rescue</div>'
+        '<div class="pipeline-sub">Responders Notified</div>'
+        '</div>'
+
+        '</div>',
         unsafe_allow_html=True,
     )
 
