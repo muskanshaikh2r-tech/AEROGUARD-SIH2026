@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 import streamlit as st
-import detection 
+
 
 # Optional scientific / vision modules.
 # The application keeps running even when one of these packages is unavailable.
