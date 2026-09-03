@@ -6,6 +6,7 @@ import textwrap
 from pathlib import Path
 
 import streamlit as st
+from map_module import get_map
 
 # Optional scientific / vision modules.
 # The application keeps running even when one of these packages is unavailable.
@@ -828,70 +829,8 @@ def render_3d_model():
 # -------------------------------------------------------------------
 # GIS MAP
 # -------------------------------------------------------------------
-
-def create_evacuation_map():
-    if folium is None:
-        return None
-
-    # Example earthquake response coordinates.
-    center = [18.5204, 73.8567]
-
-    m = folium.Map(
-        location=center,
-        zoom_start=14,
-        tiles="CartoDB dark_matter",
-        control_scale=True,
-    )
-
-    folium.Marker(
-        center,
-        tooltip="COMMAND CENTER",
-        popup="AeroGuard Emergency Command Center",
-        icon=folium.Icon(color="blue", icon="info-sign"),
-    ).add_to(m)
-
-    survivor_points = [
-        (18.5230, 73.8545, "SURVIVOR A", "High confidence"),
-        (18.5182, 73.8590, "SURVIVOR B", "Thermal + motion"),
-        (18.5212, 73.8620, "SURVIVOR C", "Acoustic signal"),
-        (18.5165, 73.8522, "SURVIVOR D", "Thermal signature"),
-    ]
-
-    for lat, lon, name, detail in survivor_points:
-        folium.Marker(
-            [lat, lon],
-            tooltip=name,
-            popup=f"{name} — {detail}",
-            icon=folium.Icon(color="red", icon="user"),
-        ).add_to(m)
-
-    # Simulated evacuation corridor.
-    evacuation_route = [
-        [18.5204, 73.8567],
-        [18.5220, 73.8550],
-        [18.5240, 73.8530],
-        [18.5260, 73.8505],
-    ]
-
-    folium.PolyLine(
-        evacuation_route,
-        color="#38bdf8",
-        weight=5,
-        opacity=0.85,
-        tooltip="Recommended Evacuation Corridor",
-    ).add_to(m)
-
-    # Hazard zone.
-    folium.Circle(
-        location=[18.5200, 73.8575],
-        radius=900,
-        color="#ef4444",
-        fill=True,
-        fill_opacity=0.10,
-        tooltip="Earthquake Hazard Zone",
-    ).add_to(m)
-
-    return m
+# The complete GIS implementation lives in map_module.py.
+# It exposes get_map(), which is rendered on the SIMULATION page below.
 
 
 # -------------------------------------------------------------------
@@ -1285,7 +1224,7 @@ def render_simulation():
         )
 
         if folium is not None and st_folium is not None:
-            evacuation_map = create_evacuation_map()
+            evacuation_map = get_map()
             st_folium(
                 evacuation_map,
                 width=None,
